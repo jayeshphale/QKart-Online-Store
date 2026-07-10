@@ -1,0 +1,6 @@
+{
+  "name": "QKart",
+  "description": "An elegant modern online supermarket platform with secure authentication, live cart management, flexible search, filters, and a beautiful checkout experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

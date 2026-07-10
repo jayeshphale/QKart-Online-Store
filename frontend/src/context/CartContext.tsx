@@ -1,0 +1,164 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { createContext, useState, useEffect, useContext } from "react";
+import { CartItem, Product } from "../types";
+import { useAuth } from "./AuthContext";
+import { cartService } from "../services/cartService";
+
+interface CartContextType {
+  cartItems: CartItem[];
+  cartCount: number;
+  cartTotal: number;
+  isLoading: boolean;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
+  addToCart: (product: Product, quantity?: number) => Promise<{ success: boolean; message: string }>;
+  updateQuantity: (productId: string, quantity: number) => Promise<{ success: boolean; message: string }>;
+  removeFromCart: (productId: string) => Promise<{ success: boolean; message: string }>;
+  clearCart: () => void;
+  fetchCart: () => Promise<void>;
+}
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const { isAuthenticated, token } = useAuth();
+
+  // Compute total count and total cost
+  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+
+  // Load cart when user logs in or is authenticated
+  const fetchCart = async () => {
+    if (!isAuthenticated || !token) {
+      setCartItems([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const data = await cartService.getCart();
+      setCartItems(data);
+      localStorage.setItem("cart", JSON.stringify(data));
+    } catch (err) {
+      console.error("Failed to fetch cart:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Trigger loading cart on authentication change
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCart();
+    } else {
+      setCartItems([]);
+      localStorage.removeItem("cart");
+    }
+  }, [isAuthenticated, token]);
+
+  const addToCart = async (product: Product, quantity: number = 1): Promise<{ success: boolean; message: string }> => {
+    if (!isAuthenticated || !token) {
+      return { success: false, message: "Please login first." };
+    }
+
+    setIsLoading(true);
+    try {
+      const existing = cartItems.find((item) => item.product.id === product.id);
+      const targetQty = (existing?.quantity || 0) + quantity;
+
+      const data = await cartService.addToCart(product.id, targetQty);
+
+      setCartItems(data);
+      localStorage.setItem("cart", JSON.stringify(data));
+      
+      // Auto-open cart drawer for immediate visual feedback
+      setIsCartOpen(true);
+      
+      return { success: true, message: "Item added to cart." };
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to update cart";
+      return { success: false, message: errMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateQuantity = async (productId: string, quantity: number): Promise<{ success: boolean; message: string }> => {
+    if (!isAuthenticated || !token) {
+      return { success: false, message: "Please login first." };
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await cartService.updateQuantity(productId, quantity);
+
+      setCartItems(data);
+      localStorage.setItem("cart", JSON.stringify(data));
+      return { success: true, message: "Cart updated successfully!" };
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to update quantity";
+      return { success: false, message: errMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const removeFromCart = async (productId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAuthenticated || !token) {
+      return { success: false, message: "Please login first." };
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await cartService.removeFromCart(productId);
+
+      setCartItems(data);
+      localStorage.setItem("cart", JSON.stringify(data));
+      return { success: true, message: "Item removed from cart" };
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to remove item";
+      return { success: false, message: errMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+    localStorage.removeItem("cart");
+  };
+
+  return (
+    <CartContext.Provider
+      value={{
+        cartItems,
+        cartCount,
+        cartTotal,
+        isLoading,
+        isCartOpen,
+        setIsCartOpen,
+        addToCart,
+        updateQuantity,
+        removeFromCart,
+        clearCart,
+        fetchCart
+      }}
+    >
+      {children}
+    </CartContext.Provider>
+  );
+};
+
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error("useCart must be used within a CartProvider");
+  }
+  return context;
+};
