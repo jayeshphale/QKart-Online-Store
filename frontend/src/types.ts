@@ -12,6 +12,13 @@ export interface Product {
   image: string;
   description: string;
   stock: number;
+  brand: string;
+  originalPrice: number;
+  discount: number;
+  reviewsCount: number;
+  images: string[];
+  specifications: Record<string, string>;
+  deliveryInfo: string;
 }
 
 export interface CartItem {

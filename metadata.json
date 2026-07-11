@@ -1,6 +1,6 @@
 {
   "name": "QKart",
-  "description": "An elegant modern online supermarket platform with secure authentication, live cart management, flexible search, filters, and a beautiful checkout experience.",
+  "description": "A premium, responsive multi-category e-commerce marketplace inspired by Amazon and Flipkart, featuring live countdown deals, custom coupon ticketing, pincode-based delivery estimates, and full search suggestions.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

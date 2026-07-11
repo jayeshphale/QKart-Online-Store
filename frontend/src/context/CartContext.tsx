@@ -7,6 +7,7 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import { CartItem, Product } from "../types";
 import { useAuth } from "./AuthContext";
 import { cartService } from "../services/cartService";
+import { api } from "../services/api";
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -20,6 +21,10 @@ interface CartContextType {
   removeFromCart: (productId: string) => Promise<{ success: boolean; message: string }>;
   clearCart: () => void;
   fetchCart: () => Promise<void>;
+  wishlistItems: Product[];
+  addToWishlist: (product: Product) => void;
+  removeFromWishlist: (productId: string) => void;
+  isInWishlist: (productId: string) => boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -29,6 +34,74 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const { isAuthenticated, token } = useAuth();
+
+  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+
+  // Load wishlist from backend if authenticated, otherwise fallback to localStorage
+  useEffect(() => {
+    const loadInitialWishlist = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await api.get("/wishlist");
+          if (response.data && response.data.success) {
+            setWishlistItems(response.data.data || []);
+            return;
+          }
+        } catch (err) {
+          console.error("Failed to fetch wishlist from server:", err);
+        }
+      }
+      
+      // Fallback
+      try {
+        const stored = localStorage.getItem("wishlist");
+        setWishlistItems(stored ? JSON.parse(stored) : []);
+      } catch {
+        setWishlistItems([]);
+      }
+    };
+    loadInitialWishlist();
+  }, [isAuthenticated, token]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      localStorage.setItem("wishlist", JSON.stringify(wishlistItems));
+    }
+  }, [wishlistItems, isAuthenticated]);
+
+  const addToWishlist = async (product: Product) => {
+    if (wishlistItems.some((item) => item.id === product.id)) {
+      return;
+    }
+    
+    // Optimistic update
+    setWishlistItems((prev) => [...prev, product]);
+
+    if (isAuthenticated) {
+      try {
+        await api.post("/wishlist", { productId: product.id });
+      } catch (err) {
+        console.error("Failed to add to server wishlist:", err);
+      }
+    }
+  };
+
+  const removeFromWishlist = async (productId: string) => {
+    // Optimistic update
+    setWishlistItems((prev) => prev.filter((item) => item.id !== productId));
+
+    if (isAuthenticated) {
+      try {
+        await api.delete(`/wishlist/${productId}`);
+      } catch (err) {
+        console.error("Failed to remove from server wishlist:", err);
+      }
+    }
+  };
+
+  const isInWishlist = (productId: string) => {
+    return wishlistItems.some((item) => item.id === productId);
+  };
 
   // Compute total count and total cost
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -147,7 +220,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateQuantity,
         removeFromCart,
         clearCart,
-        fetchCart
+        fetchCart,
+        wishlistItems,
+        addToWishlist,
+        removeFromWishlist,
+        isInWishlist
       }}
     >
       {children}

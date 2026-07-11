@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 
-export type RoutePath = "home" | "login" | "register" | "products" | "product-details" | "checkout" | "order-success" | "orders" | "404";
+export type RoutePath = "home" | "login" | "register" | "products" | "product-details" | "checkout" | "order-success" | "orders" | "wishlist" | "404";
 
 interface CurrentRoute {
   path: RoutePath;
@@ -18,7 +18,8 @@ export function useHashRouter() {
 
   function parseHash(): CurrentRoute {
     const hash = window.location.hash || "#/";
-    const pathPart = hash.slice(1).split("?")[0] || "/";
+    const rawPath = hash.slice(1).split("?")[0] || "/";
+    const pathPart = rawPath.startsWith("/") ? rawPath : "/" + rawPath;
     const searchPart = hash.slice(1).split("?")[1] || "";
 
     const params: Record<string, string> = {};
@@ -45,6 +46,9 @@ export function useHashRouter() {
     if (pathPart === "/orders") {
       return { path: "orders", params, search: searchPart };
     }
+    if (pathPart === "/wishlist") {
+      return { path: "wishlist", params, search: searchPart };
+    }
 
     // Match path with parameters, e.g., /product/prod-1
     if (pathPart.startsWith("/product/")) {
@@ -59,6 +63,10 @@ export function useHashRouter() {
   }
 
   useEffect(() => {
+    if (!window.location.hash || window.location.hash === "#") {
+      window.location.hash = "#/";
+    }
+
     const handleHashChange = () => {
       setRoute(parseHash());
     };

@@ -28,6 +28,7 @@ const ProductDetailsPage = lazy(() => import("./pages/ProductDetailsPage").then(
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage").then(m => ({ default: m.CheckoutPage })));
 const OrderSuccessPage = lazy(() => import("./pages/OrderSuccessPage").then(m => ({ default: m.OrderSuccessPage })));
 const OrdersPage = lazy(() => import("./pages/OrdersPage").then(m => ({ default: m.OrdersPage })));
+const WishlistPage = lazy(() => import("./pages/WishlistPage").then(m => ({ default: m.WishlistPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 // Dynamic loading loader screen
@@ -98,6 +99,8 @@ function AppContent() {
         return <OrderSuccessPage navigate={router.navigate} />;
       case "orders":
         return <OrdersPage navigate={router.navigate} />;
+      case "wishlist":
+        return <WishlistPage navigate={router.navigate} />;
       case "404":
       default:
         return <NotFoundPage navigate={router.navigate} />;

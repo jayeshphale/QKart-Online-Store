@@ -7,8 +7,8 @@ import { api } from "./api";
 import { Order } from "../types";
 
 export const ordersService = {
-  checkout: async (address: string): Promise<{ success: boolean; message: string; order?: Order }> => {
-    const response = await api.post("/checkout", { address });
+  checkout: async (address: string, couponCode?: string): Promise<{ success: boolean; message: string; order?: Order }> => {
+    const response = await api.post("/checkout", { address, couponCode });
     return response.data;
   },
 

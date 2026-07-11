@@ -9,10 +9,20 @@ import { CartItem } from "../types";
 interface OrderSummaryProps {
   cartItems: CartItem[];
   cartTotal: number;
+  discountAmount?: number;
+  couponCode?: string | null;
+  onRemoveCoupon?: () => void;
 }
 
-export const OrderSummary: React.FC<OrderSummaryProps> = ({ cartItems, cartTotal }) => {
+export const OrderSummary: React.FC<OrderSummaryProps> = ({ 
+  cartItems, 
+  cartTotal,
+  discountAmount = 0,
+  couponCode = null,
+  onRemoveCoupon
+}) => {
   const totalItemsCount = cartItems.reduce((count, item) => count + item.quantity, 0);
+  const finalPayable = Math.max(0, cartTotal - discountAmount);
 
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 p-6 rounded-3xl shadow-sm flex flex-col gap-4 sticky top-24" id="order-summary-box">
@@ -67,12 +77,30 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({ cartItems, cartTotal
           <span className="text-emerald-500 font-black">FREE</span>
         </div>
         
+        {discountAmount > 0 && (
+          <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-xl">
+            <span className="flex items-center gap-1">
+              <span>Coupon Promo ({couponCode})</span>
+              {onRemoveCoupon && (
+                <button 
+                  onClick={onRemoveCoupon}
+                  type="button"
+                  className="text-rose-500 hover:text-rose-600 font-black cursor-pointer text-[10px] uppercase border-l border-emerald-500/30 pl-2 ml-1"
+                >
+                  Remove
+                </button>
+              )}
+            </span>
+            <span>-${discountAmount.toFixed(2)}</span>
+          </div>
+        )}
+        
         <hr className="border-zinc-150 dark:border-zinc-800/80 my-0.5" />
         
         <div className="flex items-center justify-between text-sm" id="summary-grand-total">
           <span className="font-black text-zinc-800 dark:text-zinc-200">Order Total</span>
           <span className="text-base font-black text-orange-600 dark:text-orange-400" id="order-total-amount">
-            ${cartTotal.toFixed(2)}
+            ${finalPayable.toFixed(2)}
           </span>
         </div>
       </div>

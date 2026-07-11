@@ -10,8 +10,13 @@ import { createServer as createViteServer } from "vite";
 import apiRouter from "./routes/index";
 import { PORT } from "./config/config";
 import { errorHandler } from "./middleware/errorMiddleware";
+import { getDatabase } from "./services/dbService";
 
 async function startServer() {
+  // Eagerly initialize/generate database if not present
+  console.log("Eagerly checking/initializing database...");
+  getDatabase();
+
   const app = express();
 
   // Enable CORS
@@ -33,6 +38,7 @@ async function startServer() {
     console.log("Starting Vite in middleware mode pointing to frontend...");
     const vite = await createViteServer({
       root: path.join(process.cwd(), "frontend"),
+      configFile: path.join(process.cwd(), "vite.config.ts"),
       server: { middlewareMode: true },
       appType: "spa",
     });

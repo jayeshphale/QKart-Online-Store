@@ -127,7 +127,7 @@ export const addWalletFunds = (req: AuthenticatedRequest, res: Response) => {
 };
 
 export const checkout = (req: AuthenticatedRequest, res: Response) => {
-  const { address } = req.body;
+  const { address, couponCode } = req.body;
   const db = getDatabase();
   const username = req.username;
   if (!username) {
@@ -149,8 +149,28 @@ export const checkout = (req: AuthenticatedRequest, res: Response) => {
     return res.status(400).json({ message: "Delivery address is required" });
   }
 
-  // Calculate total price
-  const totalPrice = userCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // Calculate base price
+  let basePrice = userCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  let totalPrice = basePrice;
+  let discountAmount = 0;
+
+  // Apply Coupon if exists
+  if (couponCode) {
+    const coupons = (db as any).coupons || [];
+    const coupon = coupons.find((c: any) => c.code.trim().toUpperCase() === couponCode.trim().toUpperCase());
+    if (coupon) {
+      if (!coupon.minCartValue || basePrice >= coupon.minCartValue) {
+        discountAmount = coupon.discountAmount || 0;
+        if (coupon.discountPercentage) {
+          discountAmount = (basePrice * coupon.discountPercentage) / 100;
+          if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+            discountAmount = coupon.maxDiscount;
+          }
+        }
+        totalPrice = Math.max(0, basePrice - discountAmount);
+      }
+    }
+  }
 
   // Check balance
   if (user.walletBalance < totalPrice) {

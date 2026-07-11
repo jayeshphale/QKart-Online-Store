@@ -94,6 +94,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
                     transform: "scale(1.02)"
+                  },
+                  // Explicitly set colors to ensure absolute visibility under any CSS override
+                  color: isSelected ? "#ffffff" : "text.primary",
+                  backgroundColor: isSelected ? "primary.main" : "background.paper",
+                  borderColor: isSelected ? "primary.main" : "text.secondary",
+                  "& .MuiChip-label": {
+                    color: isSelected ? "#ffffff" : "text.primary",
                   }
                 }}
                 id={`category-chip-${cat.replace(/\s+/g, "-")}`}

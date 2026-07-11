@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { CreditCard, MapPin, Loader2, Wallet, ArrowLeft, ShoppingBag } from "lucide-react";
+import { CreditCard, MapPin, Loader2, Wallet, ArrowLeft, ShoppingBag, Tag, Percent, AlertTriangle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useNotification } from "../context/NotificationContext";
@@ -12,6 +12,7 @@ import { AddressList } from "../components/AddressList";
 import { AddressForm } from "../components/AddressForm";
 import { OrderSummary } from "../components/OrderSummary";
 import { ordersService } from "../services/ordersService";
+import { api } from "../services/api";
 
 interface CheckoutPageProps {
   navigate: (path: string) => void;
@@ -32,6 +33,57 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
   const [showAddFundsInline, setShowAddFundsInline] = useState(false);
   const [inlineFundsAmt, setInlineFundsAmt] = useState("");
   const [isAddingFunds, setIsAddingFunds] = useState(false);
+
+  // Coupon Promotion States
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState("");
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCodeInput.trim()) {
+      showNotification("Please enter a coupon code.", "warning");
+      return;
+    }
+    setIsApplyingCoupon(true);
+    setCouponError("");
+    setCouponSuccess("");
+
+    try {
+      const response = await api.post("/apply-coupon", {
+        couponCode: couponCodeInput.trim(),
+        cartTotal: cartTotal
+      });
+
+      if (response.data && response.data.success) {
+        const { code, discountAmount: discAmt, description } = response.data.data;
+        setAppliedCouponCode(code);
+        setDiscountAmount(discAmt);
+        setCouponSuccess(`${description || "Coupon applied successfully!"} (Discount: $${discAmt.toFixed(2)})`);
+        showNotification(`Coupon ${code} applied! Saved $${discAmt.toFixed(2)}`, "success");
+      }
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to apply coupon.";
+      setCouponError(errMsg);
+      showNotification(errMsg, "error");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCouponCode(null);
+    setDiscountAmount(0);
+    setCouponCodeInput("");
+    setCouponSuccess("");
+    setCouponError("");
+    showNotification("Coupon removed.", "info");
+  };
+
+  const payableTotal = Math.max(0, cartTotal - discountAmount);
 
   // Authenticated route protection
   useEffect(() => {
@@ -156,14 +208,14 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
     }
 
     // Client-side Wallet Balance Validation
-    if (user.walletBalance < cartTotal) {
+    if (user.walletBalance < payableTotal) {
       showNotification("Insufficient wallet balance.", "warning");
       return;
     }
 
     setIsPlacingOrder(true);
     try {
-      const res = await ordersService.checkout(deliveryAddress);
+      const res = await ordersService.checkout(deliveryAddress, appliedCouponCode || undefined);
 
       if (res.success && res.order) {
         // Update wallet balance immediately in context & local storage
@@ -199,7 +251,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
     );
   }
 
-  const isBalanceInsufficient = user.walletBalance < cartTotal;
+  const isBalanceInsufficient = user.walletBalance < payableTotal;
 
   return (
     <div className="flex flex-col gap-6 pb-16 animate-fadeIn animate-duration-300" id="checkout-page-container">
@@ -298,8 +350,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
 
             {isBalanceInsufficient ? (
               <div className="bg-rose-50 dark:bg-rose-950/25 border border-rose-200/50 text-rose-900 dark:text-rose-100 p-4 rounded-2xl flex flex-col gap-3" id="insufficient-balance-alert">
-                <p className="text-xs font-bold leading-relaxed">
-                  ⚠️ <strong>Insufficient Balance:</strong> Your order total is <strong>${cartTotal.toFixed(2)}</strong>, but your wallet only holds <strong>${user.walletBalance.toFixed(2)}</strong>. Please top up your virtual QKart wallet below to continue.
+                <p className="text-xs font-bold leading-relaxed flex items-center gap-1.5 flex-wrap">
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span>
+                    <strong>Insufficient Balance:</strong> Your order total is <strong>${payableTotal.toFixed(2)}</strong>, but your wallet only holds <strong>${user.walletBalance.toFixed(2)}</strong>. Please top up your virtual QKart wallet below to continue.
+                  </span>
                 </p>
                 {!showAddFundsInline ? (
                   <button
@@ -345,7 +400,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
             ) : (
               <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 text-emerald-800 dark:text-emerald-300 p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5" id="wallet-funds-status">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span>Virtual wallet holds sufficient funds! Estimated balance after placement: <strong>${(user.walletBalance - cartTotal).toFixed(2)}</strong></span>
+                <span>Virtual wallet holds sufficient funds! Estimated balance after placement: <strong>${(user.walletBalance - payableTotal).toFixed(2)}</strong></span>
               </div>
             )}
 
@@ -356,7 +411,50 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ navigate }) => {
         {/* Right Column (Cart Summary & Order Summary & Place button) */}
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4">
-            <OrderSummary cartItems={cartItems} cartTotal={cartTotal} />
+            <OrderSummary 
+              cartItems={cartItems} 
+              cartTotal={cartTotal} 
+              discountAmount={discountAmount}
+              couponCode={appliedCouponCode}
+              onRemoveCoupon={handleRemoveCoupon}
+            />
+
+            {/* Coupon Entry Card */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 p-5 rounded-3xl shadow-sm flex flex-col gap-3" id="coupon-entry-card">
+              <h4 className="font-extrabold text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-orange-500" /> Apply Promotional Coupon
+              </h4>
+              {!appliedCouponCode ? (
+                <form onSubmit={handleApplyCoupon} className="flex gap-1.5 mt-1">
+                  <input
+                    type="text"
+                    placeholder="Enter Coupon, e.g. WELCOME10"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                    disabled={isApplyingCoupon}
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold outline-none uppercase text-zinc-800 dark:text-zinc-200 focus:border-orange-500"
+                    id="coupon-input-field"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isApplyingCoupon}
+                    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs rounded-xl cursor-pointer shadow-sm flex items-center justify-center min-w-[70px]"
+                    id="apply-coupon-submit-btn"
+                  >
+                    {isApplyingCoupon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Apply"}
+                  </button>
+                </form>
+              ) : (
+                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/40 text-emerald-850 dark:text-emerald-300 p-3 rounded-2xl text-[11px] font-bold flex justify-between items-center">
+                  <p className="leading-snug">{couponSuccess}</p>
+                </div>
+              )}
+              {couponError && (
+                <p className="text-[10px] text-rose-500 font-extrabold mt-0.5" id="coupon-error-helper">
+                  * {couponError}
+                </p>
+              )}
+            </div>
             
             {/* Place Order Button card */}
             <div className="bg-zinc-50 dark:bg-zinc-900/40 p-4 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800 flex flex-col gap-3">

@@ -34,6 +34,7 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { authHelper } from "../utils/authHelper";
+import { motion, AnimatePresence } from "motion/react";
 
 interface LoginPageProps {
   navigate: (path: string) => void;
@@ -76,6 +77,121 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Forgot Password Flow States
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1, 2, or 3
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotTxnId, setForgotTxnId] = useState("");
+  const [forgotResetToken, setForgotResetToken] = useState("");
+  const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+  const [forgotSuccessMessage, setForgotSuccessMessage] = useState("");
+
+  // Forgot Password API Submit Handlers
+  const handleForgotEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setIsForgotSubmitting(true);
+    setForgotError("");
+    setForgotSuccessMessage("");
+
+    try {
+      let API_URL = (import.meta as any).env?.VITE_API_URL || "/api/v1";
+      if (API_URL.includes("localhost:5000") || API_URL.includes("127.0.0.1:5000")) {
+        API_URL = "/api/v1";
+      }
+
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, {
+        email: forgotEmail.trim()
+      });
+
+      if (response.data && response.data.success) {
+        setForgotTxnId(response.data.data.transactionId);
+        setForgotSuccessMessage("Security OTP code has been generated. Proceeding to verification.");
+        setTimeout(() => {
+          setForgotSuccessMessage("");
+          setForgotStep(2);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setForgotError(err.response?.data?.message || err.message || "Failed to locate credentials.");
+    } finally {
+      setIsForgotSubmitting(false);
+    }
+  };
+
+  const handleForgotOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotOtp.trim()) return;
+    setIsForgotSubmitting(true);
+    setForgotError("");
+    setForgotSuccessMessage("");
+
+    try {
+      let API_URL = (import.meta as any).env?.VITE_API_URL || "/api/v1";
+      if (API_URL.includes("localhost:5000") || API_URL.includes("127.0.0.1:5000")) {
+        API_URL = "/api/v1";
+      }
+
+      const response = await axios.post(`${API_URL}/auth/verify-otp`, {
+        transactionId: forgotTxnId,
+        otp: forgotOtp.trim()
+      });
+
+      if (response.data && response.data.success) {
+        setForgotResetToken(response.data.data.resetToken);
+        setForgotSuccessMessage("Security code validated successfully. Complete reset below.");
+        setTimeout(() => {
+          setForgotSuccessMessage("");
+          setForgotStep(3);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setForgotError(err.response?.data?.message || err.message || "Invalid verification code.");
+    } finally {
+      setIsForgotSubmitting(false);
+    }
+  };
+
+  const handleForgotResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotNewPassword.length < 6) {
+      setForgotError("Password must be at least 6 characters.");
+      return;
+    }
+    setIsForgotSubmitting(true);
+    setForgotError("");
+    setForgotSuccessMessage("");
+
+    try {
+      let API_URL = (import.meta as any).env?.VITE_API_URL || "/api/v1";
+      if (API_URL.includes("localhost:5000") || API_URL.includes("127.0.0.1:5000")) {
+        API_URL = "/api/v1";
+      }
+
+      const response = await axios.post(`${API_URL}/auth/reset-password`, {
+        transactionId: forgotTxnId,
+        resetToken: forgotResetToken,
+        newPassword: forgotNewPassword
+      });
+
+      if (response.data && response.data.success) {
+        setIsForgotOpen(false);
+        setSnackbar({
+          open: true,
+          message: "Credentials altered successfully! Please login with your new password.",
+          severity: "success"
+        });
+      }
+    } catch (err: any) {
+      setForgotError(err.response?.data?.message || err.message || "Credential modification failed.");
+    } finally {
+      setIsForgotSubmitting(false);
+    }
+  };
 
   // Snackbar notifications state
   const [snackbar, setSnackbar] = useState({
@@ -291,6 +407,35 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
                   }}
                 />
 
+                {/* Forgot Password Link */}
+                <Box sx={{ display: "flex", justifyContent: "flex-end", mt: -1 }}>
+                  <Button
+                    onClick={() => {
+                      setForgotError("");
+                      setForgotSuccessMessage("");
+                      setForgotEmail("");
+                      setForgotOtp("");
+                      setForgotNewPassword("");
+                      setForgotStep(1);
+                      setIsForgotOpen(true);
+                    }}
+                    sx={{
+                      fontSize: "12px",
+                      textTransform: "none",
+                      color: "#71717a",
+                      fontWeight: "semibold",
+                      "&:hover": {
+                        color: "#ea580c",
+                        backgroundColor: "transparent",
+                        textDecoration: "underline"
+                      }
+                    }}
+                    id="login-forgot-password-btn"
+                  >
+                    Forgot Password?
+                  </Button>
+                </Box>
+
                 {/* Submit button "Login Now" */}
                 <Button
                   type="submit"
@@ -347,6 +492,199 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate }) => {
 
           </Box>
         </Paper>
+
+        {/* Forgot Password Modal Overlay */}
+        <AnimatePresence>
+          {isForgotOpen && (
+            <div 
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(9, 9, 11, 0.75)",
+                backdropFilter: "blur(4px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9999,
+                padding: "16px"
+              }}
+              id="forgot-password-modal-container"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                style={{
+                  width: "100%",
+                  maxWidth: "440px",
+                  backgroundColor: isDarkMode ? "#18181b" : "#ffffff",
+                  border: isDarkMode ? "1px solid #27272a" : "1px solid #e4e4e7",
+                  borderRadius: "24px",
+                  padding: "24px",
+                  boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary" }}>
+                    Credential Recovery
+                  </Typography>
+                  <IconButton 
+                    onClick={() => setIsForgotOpen(false)}
+                    sx={{ color: "text.secondary" }}
+                  >
+                    <span style={{ fontSize: "20px", fontWeight: "bold" }}>&times;</span>
+                  </IconButton>
+                </div>
+
+                {/* Info and Progress Steps */}
+                <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+                  {[1, 2, 3].map((step) => (
+                    <div 
+                      key={step} 
+                      style={{ 
+                        flex: 1, 
+                        height: "4px", 
+                        borderRadius: "2px",
+                        backgroundColor: forgotStep >= step ? "#f97316" : (isDarkMode ? "#27272a" : "#e4e4e7"),
+                        transition: "background-color 0.3s ease"
+                      }} 
+                    />
+                  ))}
+                </div>
+
+                {forgotError && (
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+                    {forgotError}
+                  </Alert>
+                )}
+
+                {forgotSuccessMessage && (
+                  <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+                    {forgotSuccessMessage}
+                  </Alert>
+                )}
+
+                {/* STEP 1: Enter Username/Email */}
+                {forgotStep === 1 && (
+                  <form onSubmit={handleForgotEmailSubmit}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Enter your account username. We will generate a simulated verification OTP to verify your identity.
+                    </Typography>
+                    
+                    <TextField
+                      fullWidth
+                      required
+                      label="Username or Email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="e.g. testuser"
+                      sx={{ mb: 3 }}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon />
+                            </InputAdornment>
+                          )
+                        }
+                      }}
+                    />
+
+                    <Button
+                      fullWidth
+                      type="submit"
+                      variant="contained"
+                      disabled={isForgotSubmitting}
+                      sx={{ py: 1.2, fontWeight: "bold", borderRadius: 2.5 }}
+                    >
+                      {isForgotSubmitting ? "Generating OTP..." : "Get Verification OTP"}
+                    </Button>
+                  </form>
+                )}
+
+                {/* STEP 2: Verify OTP */}
+                {forgotStep === 2 && (
+                  <form onSubmit={handleForgotOtpSubmit}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      A secure transaction ID has been generated. For simulation, please enter the secure OTP code: <b style={{ color: "#ea580c" }}>123456</b>.
+                    </Typography>
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Verification Code (OTP)"
+                      value={forgotOtp}
+                      onChange={(e) => setForgotOtp(e.target.value)}
+                      placeholder="123456"
+                      sx={{ mb: 3 }}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <LockIcon />
+                            </InputAdornment>
+                          )
+                        }
+                      }}
+                    />
+
+                    <Button
+                      fullWidth
+                      type="submit"
+                      variant="contained"
+                      disabled={isForgotSubmitting}
+                      sx={{ py: 1.2, fontWeight: "bold", borderRadius: 2.5 }}
+                    >
+                      {isForgotSubmitting ? "Verifying..." : "Verify Security Code"}
+                    </Button>
+                  </form>
+                )}
+
+                {/* STEP 3: Enter New Password */}
+                {forgotStep === 3 && (
+                  <form onSubmit={handleForgotResetSubmit}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Your security token is verified! Now, choose a secure new password for your account.
+                    </Typography>
+
+                    <TextField
+                      fullWidth
+                      required
+                      type="password"
+                      label="New Secure Password"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      placeholder="Min 6 characters"
+                      sx={{ mb: 3 }}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <LockIcon />
+                            </InputAdornment>
+                          )
+                        }
+                      }}
+                    />
+
+                    <Button
+                      fullWidth
+                      type="submit"
+                      variant="contained"
+                      disabled={isForgotSubmitting}
+                      sx={{ py: 1.2, fontWeight: "bold", borderRadius: 2.5 }}
+                    >
+                      {isForgotSubmitting ? "Resetting Credentials..." : "Alter Credentials & Reset"}
+                    </Button>
+                  </form>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Snackbar notifications */}
         <Snackbar

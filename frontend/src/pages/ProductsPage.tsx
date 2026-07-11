@@ -141,15 +141,15 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
                   px: 2,
                   py: 0.5,
                   borderRadius: 2,
-                  bgcolor: "primary.main",
-                  color: "white",
+                  bgcolor: "amber.500",
+                  color: "zinc.950",
                   mb: 2,
-                  boxShadow: "0 4px 10px rgba(249, 115, 22, 0.2)"
+                  boxShadow: "0 4px 10px rgba(245, 158, 11, 0.2)"
                 }}
               >
                 <LocalMallIcon sx={{ fontSize: 16 }} />
                 <Typography variant="caption" sx={{ fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  QKart Organic Supermarket
+                  QKart Marketplace
                 </Typography>
               </Box>
 
@@ -164,7 +164,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
                   mb: 1
                 }}
               >
-                Fresh Produce & Premium Gadgets
+                Premium Tech, Fashion & Living
               </Typography>
               <Typography
                 variant="body2"
@@ -173,11 +173,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
                   fontSize: "0.875rem"
                 }}
               >
-                Sourced directly from organic local growers and sustainable farms. Free delivery on orders over $50.00!
+                Shop millions of items from verified brand partners. High speed shipping with 10-day returns and refund assurances!
               </Typography>
             </Box>
 
-            {/* Decorative organic pattern element */}
+            {/* Decorative marketplace pattern element */}
             <Box
               sx={{
                 opacity: 0.1,
@@ -189,7 +189,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
                 pointerEvents: "none"
               }}
             >
-              🥗
+              🛍️
             </Box>
           </Paper>
 
