@@ -11,4 +11,8 @@ dotenv.config();
 
 export const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 export const JWT_SECRET = process.env.JWT_SECRET || "qkart_super_secret_jwt_key_987654";
-export const DB_FILE_PATH = process.env.DB_FILE_PATH || path.join(process.cwd(), "backend", "database", "db.json");
+export const DB_FILE_PATH = process.env.DB_FILE_PATH || (
+  process.cwd().endsWith("backend") || process.cwd().endsWith("backend/")
+    ? path.join(process.cwd(), "database", "db.json")
+    : path.join(process.cwd(), "backend", "database", "db.json")
+);

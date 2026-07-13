@@ -6,6 +6,7 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import apiRouter from "./routes/index";
 import { PORT } from "./config/config";
@@ -27,9 +28,12 @@ async function startServer() {
 
   const app = express();
 
-  // Enable CORS
+  // Enable CORS with dynamic origin mirroring to support credentials across domains (e.g., Vercel and Render)
   app.use(cors({
-    origin: "*",
+    origin: (origin, callback) => {
+      // Allow all origins dynamically
+      callback(null, true);
+    },
     credentials: true
   }));
 
@@ -41,22 +45,39 @@ async function startServer() {
   // Centralized Error Handler
   app.use(errorHandler);
 
-  // Serve Frontend
-  if (process.env.NODE_ENV !== "production") {
+  // Serve Frontend if available, otherwise serve a welcome message for standalone API server
+  const isCwdBackend = process.cwd().endsWith("backend") || process.cwd().endsWith("backend/");
+  const distPath = isCwdBackend 
+    ? path.join(process.cwd(), "..", "frontend", "dist")
+    : path.join(process.cwd(), "frontend", "dist");
+
+  const frontendPath = isCwdBackend ? path.join(process.cwd(), "..", "frontend") : path.join(process.cwd(), "frontend");
+
+  if (process.env.NODE_ENV !== "production" && fs.existsSync(frontendPath)) {
     console.log("Starting Vite in middleware mode pointing to frontend...");
+    const configPath = isCwdBackend ? path.join(process.cwd(), "..", "vite.config.ts") : path.join(process.cwd(), "vite.config.ts");
+    const rootPath = isCwdBackend ? path.join(process.cwd(), "..", "frontend") : path.join(process.cwd(), "frontend");
     const vite = await createViteServer({
-      root: path.join(process.cwd(), "frontend"),
-      configFile: path.join(process.cwd(), "vite.config.ts"),
+      root: rootPath,
+      configFile: configPath,
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (fs.existsSync(distPath)) {
     console.log("Serving static production assets from frontend/dist...");
-    const distPath = path.join(process.cwd(), "frontend", "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
+    });
+  } else {
+    console.log("No frontend static assets found. Running in standalone API mode.");
+    app.get("/", (req, res) => {
+      res.json({
+        message: "Welcome to QKart Backend API Server",
+        status: "healthy",
+        apiDocs: "/api/v1"
+      });
     });
   }
 
