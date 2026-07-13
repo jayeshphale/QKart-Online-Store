@@ -2,6 +2,10 @@
 
 A highly optimized, production-ready full-stack organic e-commerce supermarket and digital shopping mall application. QKart provides users with a seamless, highly responsive, modern online grocery experience with advanced real-time lookups, custom address coordinate management, a secure virtual payment wallet, and a newly integrated dynamic knowledge and support center.
 
+**Live Deployments:**
+- **Frontend App (Vercel):** [https://q-kart-online-store.vercel.app/#/](https://q-kart-online-store.vercel.app/#/)
+- **Backend API & Service (Render):** [https://qkart-online-store.onrender.com](https://qkart-online-store.onrender.com)
+
 ---
 
 ## Design and Visual Identity
@@ -198,18 +202,21 @@ Verifies registration validation, login error banners, product grids, 450ms sear
 
 ## Deployment Instructions
 
-### Frontend Deployment (Vercel / Netlify)
-To host the frontend independently, set:
-*   **Build Command**: `npm run build`
-*   **Output Directory**: `frontend/dist`
-*   **Environment Variables**: Define `VITE_API_URL` to point to your live hosted backend endpoint (e.g., `https://qkart-backend.railway.app/api/v1`).
+The application is fully deployed and configured across two key services:
 
-### Backend Deployment (Render / Railway)
-To deploy the backend:
-*   **Environment Variables**:
-    *   Set `NODE_ENV=production` to serve static assets directly from `frontend/dist`.
-    *   Configure `JWT_SECRET` and `PORT=3000`.
+### Frontend Deployment (Vercel)
+The frontend application is hosted on Vercel:
+*   **Live App URL**: [https://q-kart-online-store.vercel.app/#/](https://q-kart-online-store.vercel.app/#/)
+*   **Build Command**: `npm run build:frontend`
+*   **Output Directory**: `frontend/dist`
+*   **API Proxies**: Requests starting with `/api` are automatically proxied via `vercel.json` rewrites to the Render server.
+
+### Backend Deployment (Render)
+The backend API server runs on Render:
+*   **API Endpoint**: [https://qkart-online-store.onrender.com](https://qkart-online-store.onrender.com)
+*   **Build Command**: `npm install; npm run build`
 *   **Start Command**: `npm run start`
+*   **Environment Variables**: Configured with `NODE_ENV=production` and `JWT_SECRET`.
 
 ---
 
