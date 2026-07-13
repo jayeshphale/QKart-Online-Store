@@ -6,18 +6,11 @@
 import React from "react";
 import { 
   Sparkles, 
-  Mail, 
-  MapPin, 
-  Phone,
-  Facebook,
-  Instagram,
-  Linkedin,
-  Twitter,
-  Youtube,
-  ShieldCheck,
-  RotateCcw,
-  CreditCard,
-  Lock
+  ShieldCheck, 
+  RotateCcw, 
+  CreditCard, 
+  Lock,
+  ExternalLink
 } from "lucide-react";
 
 interface FooterProps {
@@ -87,28 +80,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               QKart is a premier, responsive multi-category e-commerce marketplace. Shop smartphones, electronics, high-power workstations, apparel, home appliances, books, furniture, and daily essentials with our brand partners.
             </p>
             
-            {/* Social Media Icons */}
-            <div className="flex items-center gap-3 mt-2">
-              {[
-                { icon: Facebook, color: "hover:text-blue-500 hover:bg-blue-500/10" },
-                { icon: Instagram, color: "hover:text-pink-500 hover:bg-pink-500/10" },
-                { icon: Linkedin, color: "hover:text-sky-500 hover:bg-sky-500/10" },
-                { icon: Twitter, color: "hover:text-sky-400 hover:bg-sky-400/10" },
-                { icon: Youtube, color: "hover:text-red-500 hover:bg-red-500/10" }
-              ].map((s, idx) => {
-                const IconComponent = s.icon;
-                return (
-                  <a
-                    key={idx}
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
-                    className={`p-2 rounded-lg bg-zinc-900 text-zinc-500 transition-all duration-300 ${s.color}`}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                  </a>
-                );
-              })}
-            </div>
+
           </div>
 
           {/* Column 1: Company */}
@@ -117,11 +89,11 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               Company
             </h4>
             <ul className="flex flex-col gap-2.5 text-xs text-zinc-500">
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">About QKart</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Careers</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Press Releases</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Investor Relations</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">QKart Science</span></li>
+              <li><span onClick={() => navigate("info/about-qkart")} className="hover:text-amber-400 cursor-pointer transition-colors">About QKart</span></li>
+              <li><span onClick={() => navigate("info/careers")} className="hover:text-amber-400 cursor-pointer transition-colors">Careers</span></li>
+              <li><span onClick={() => navigate("info/press-releases")} className="hover:text-amber-400 cursor-pointer transition-colors">Press Releases</span></li>
+              <li><span onClick={() => navigate("info/investor-relations")} className="hover:text-amber-400 cursor-pointer transition-colors">Investor Relations</span></li>
+              <li><span onClick={() => navigate("info/qkart-science")} className="hover:text-amber-400 cursor-pointer transition-colors">QKart Science</span></li>
             </ul>
           </div>
 
@@ -131,11 +103,11 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               Help & Support
             </h4>
             <ul className="flex flex-col gap-2.5 text-xs text-zinc-500">
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Contact Support</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Shipping & Delivery</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Returns & Exchanges</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Refund Policies</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">QKart Assistant</span></li>
+              <li><span onClick={() => navigate("info/contact-support")} className="hover:text-amber-400 cursor-pointer transition-colors">Contact Support</span></li>
+              <li><span onClick={() => navigate("info/shipping-delivery")} className="hover:text-amber-400 cursor-pointer transition-colors">Shipping & Delivery</span></li>
+              <li><span onClick={() => navigate("info/returns-exchanges")} className="hover:text-amber-400 cursor-pointer transition-colors">Returns & Exchanges</span></li>
+              <li><span onClick={() => navigate("info/refund-policies")} className="hover:text-amber-400 cursor-pointer transition-colors">Refund Policies</span></li>
+              <li><span onClick={() => navigate("info/qkart-assistant")} className="hover:text-amber-400 cursor-pointer transition-colors">QKart Assistant</span></li>
             </ul>
           </div>
 
@@ -145,11 +117,11 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               Policies
             </h4>
             <ul className="flex flex-col gap-2.5 text-xs text-zinc-500">
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Privacy Policy</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Terms of Use</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Cookie Preferences</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">Interest-Based Ads</span></li>
-              <li><span className="hover:text-amber-400 cursor-pointer transition-colors">E-Waste Management</span></li>
+              <li><span onClick={() => navigate("info/privacy-policy")} className="hover:text-amber-400 cursor-pointer transition-colors">Privacy Policy</span></li>
+              <li><span onClick={() => navigate("info/terms-use")} className="hover:text-amber-400 cursor-pointer transition-colors">Terms of Use</span></li>
+              <li><span onClick={() => navigate("info/cookie-preferences")} className="hover:text-amber-400 cursor-pointer transition-colors">Cookie Preferences</span></li>
+              <li><span onClick={() => navigate("info/interest-ads")} className="hover:text-amber-400 cursor-pointer transition-colors">Interest-Based Ads</span></li>
+              <li><span onClick={() => navigate("info/ewaste-management")} className="hover:text-amber-400 cursor-pointer transition-colors">E-Waste Management</span></li>
             </ul>
           </div>
 
@@ -163,8 +135,17 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             <div>
               &copy; {new Date().getFullYear()} QKart Marketplaces Inc. All Rights Reserved.
             </div>
-            <div className="mt-1">
-              Registered Office: 100 E-Commerce Dr, Silicon Valley, CA 94043. CIN: U72900KA2026PTC999999.
+            <div className="mt-1.5 flex flex-wrap items-center justify-center md:justify-start gap-1 text-zinc-500">
+              <span>Authority & Engineering by</span>
+              <a 
+                href="https://linkedin.com/in/jayeshphale" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-amber-400 hover:text-amber-300 font-bold hover:underline inline-flex items-center gap-0.5 transition-colors"
+              >
+                Jayesh Phale
+                <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
           </div>
 

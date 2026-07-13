@@ -32,25 +32,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Restore session from localStorage on load
+  // Restore session from localStorage on load and verify token validity with backend
   useEffect(() => {
-    const storedToken = authHelper.getToken();
-    const storedUsername = authHelper.getUsername();
-    const storedBalance = storage.getItem("walletBalance");
-    const storedAddresses = storage.getItem("addresses");
+    const restoreSession = async () => {
+      const storedToken = authHelper.getToken();
+      const storedUsername = authHelper.getUsername();
+      const storedBalance = storage.getItem("walletBalance");
+      const storedAddresses = storage.getItem("addresses");
 
-    if (storedToken && storedUsername && storage.getLoginStatus()) {
-      setToken(storedToken);
-      setUser({
-        username: storedUsername,
-        walletBalance: storedBalance ? parseFloat(storedBalance) : 5000.00,
-        addresses: storedAddresses ? JSON.parse(storedAddresses) : []
-      });
-    } else {
-      // Clear out any broken session states
-      authHelper.clearLoginSession();
-    }
-    setIsLoading(false);
+      if (storedToken && storedUsername && storage.getLoginStatus()) {
+        try {
+          // Verify token against backend profile endpoint
+          const response = await api.get("/auth/profile", {
+            headers: {
+              Authorization: `Bearer ${storedToken}`
+            }
+          });
+          
+          const resData = response.data;
+          let userData = resData;
+          if (resData && resData.success && resData.data) {
+            userData = resData.data;
+          }
+
+          setToken(storedToken);
+          setUser({
+            username: userData.username || storedUsername,
+            walletBalance: typeof userData.walletBalance === "number" ? userData.walletBalance : (storedBalance ? parseFloat(storedBalance) : 5000.00),
+            addresses: Array.isArray(userData.addresses) ? userData.addresses : (storedAddresses ? JSON.parse(storedAddresses) : [])
+          });
+        } catch (err) {
+          console.warn("Stored session token is invalid or expired. Clearing session.");
+          authHelper.clearLoginSession();
+          setToken(null);
+          setUser(null);
+        }
+      } else {
+        // Clear out any broken session states
+        authHelper.clearLoginSession();
+      }
+      setIsLoading(false);
+    };
+
+    restoreSession();
   }, []);
 
   const login = async (username: string, password: string) => {

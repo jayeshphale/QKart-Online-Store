@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 
-export type RoutePath = "home" | "login" | "register" | "products" | "product-details" | "checkout" | "order-success" | "orders" | "wishlist" | "404";
+export type RoutePath = "home" | "login" | "register" | "products" | "product-details" | "checkout" | "order-success" | "orders" | "wishlist" | "info" | "404";
 
 interface CurrentRoute {
   path: RoutePath;
@@ -48,6 +48,16 @@ export function useHashRouter() {
     }
     if (pathPart === "/wishlist") {
       return { path: "wishlist", params, search: searchPart };
+    }
+    if (pathPart === "/info") {
+      return { path: "info", params: { tab: "about" }, search: searchPart };
+    }
+    if (pathPart.startsWith("/info/")) {
+      const parts = pathPart.split("/");
+      const tab = parts[2];
+      if (tab) {
+        return { path: "info", params: { tab }, search: searchPart };
+      }
     }
 
     // Match path with parameters, e.g., /product/prod-1

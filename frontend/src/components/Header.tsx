@@ -346,7 +346,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
               className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-semibold px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-700 outline-none cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors h-full rounded-l-xl"
               id="header-category-select"
             >
-              {categories.map((cat) => (
+              {(categories.includes(selectedCategory) ? categories : [...categories, selectedCategory]).map((cat) => (
                 <option key={cat} value={cat}>
                   {cat === "All" ? "All Categories" : cat}
                 </option>

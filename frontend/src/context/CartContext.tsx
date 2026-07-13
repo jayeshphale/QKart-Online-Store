@@ -43,10 +43,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isAuthenticated) {
         try {
           const response = await api.get("/wishlist");
-          if (response.data && response.data.success) {
-            setWishlistItems(response.data.data || []);
-            return;
+          const resData = response.data;
+          
+          let rawList: any[] = [];
+          if (Array.isArray(resData)) {
+            rawList = resData;
+          } else if (resData && resData.success && Array.isArray(resData.data)) {
+            rawList = resData.data;
+          } else if (resData && Array.isArray(resData.products)) {
+            rawList = resData.products;
           }
+
+          // Map items to Product[]
+          const products: Product[] = rawList.map((item: any) => {
+            if (!item) return null;
+            if (item.productDetails) return item.productDetails;
+            if (item.product) return item.product;
+            if (item.id && item.name && item.price) return item; // already a product
+            return null;
+          }).filter((p: any): p is Product => p !== null);
+
+          setWishlistItems(products);
+          return;
         } catch (err) {
           console.error("Failed to fetch wishlist from server:", err);
         }

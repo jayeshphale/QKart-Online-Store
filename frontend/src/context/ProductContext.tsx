@@ -59,6 +59,18 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const response = await api.get("/products", { params });
       let data = response.data;
+      
+      if (!Array.isArray(data)) {
+        console.error("Received non-array products data:", data);
+        if (data && typeof data === "object" && Array.isArray((data as any).products)) {
+          data = (data as any).products;
+        } else if (data && typeof data === "object" && Array.isArray((data as any).data)) {
+          data = (data as any).data;
+        } else {
+          data = [];
+        }
+      }
+
       if (activeSort === "newest") {
         data = [...data].sort((a, b) => {
           const numA = parseInt(a.id.replace("prod-", ""), 10) || 0;
@@ -94,8 +106,18 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const loadCategories = async () => {
       try {
         const response = await api.get("/products");
-        const allData: Product[] = response.data;
-        const uniqueCats = Array.from(new Set(allData.map((p) => p.category)));
+        let allData = response.data;
+        if (!Array.isArray(allData)) {
+          console.error("Received non-array products in loadCategories:", allData);
+          if (allData && typeof allData === "object" && Array.isArray((allData as any).products)) {
+            allData = (allData as any).products;
+          } else if (allData && typeof allData === "object" && Array.isArray((allData as any).data)) {
+            allData = (allData as any).data;
+          } else {
+            allData = [];
+          }
+        }
+        const uniqueCats: string[] = Array.from(new Set(allData.map((p: any) => p.category as string)));
         setCategories(["All", ...uniqueCats]);
       } catch (err) {
         console.error("Failed to load categories:", err);

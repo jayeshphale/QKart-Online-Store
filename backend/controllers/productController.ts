@@ -27,7 +27,70 @@ export const getProducts = (req: Request, res: Response) => {
 
   // 2. Category Filter
   if (category && category !== "All") {
-    result = result.filter((p) => p.category.toLowerCase() === category.toLowerCase());
+    const catLower = category.toLowerCase();
+    if (catLower === "mobiles" || catLower === "smartphones") {
+      result = result.filter((p) => {
+        const cat = p.category.toLowerCase();
+        return (
+          cat === "smartphones" ||
+          cat === "mobiles" ||
+          cat.endsWith("> smartphones") ||
+          cat.includes("smartphone")
+        ) && !cat.includes("accessories");
+      });
+    } else if (catLower === "electronics") {
+      result = result.filter((p) => {
+        const cat = p.category.toLowerCase();
+        return (
+          cat === "smartphones" ||
+          cat === "mobiles" ||
+          cat.endsWith("> smartphones") ||
+          cat.includes("smartphone") ||
+          cat === "laptops" ||
+          cat.endsWith("> laptops") ||
+          cat.includes("laptop") ||
+          cat === "tablets" ||
+          cat.endsWith("> tablets") ||
+          cat.includes("tablet")
+        ) && !cat.includes("accessories");
+      });
+    } else if (catLower === "fashion") {
+      result = result.filter((p) => [
+        "mens shirts", "mens shoes", "mens watches", "mens clothing",
+        "womens bags", "womens dresses", "womens jewellery", "womens shoes", "womens watches", "womens clothing", "tops", "sunglasses",
+        "baby clothing", "boys clothing", "girls clothing", "kids shoes", "kids wear"
+      ].includes(p.category.toLowerCase()));
+    } else if (catLower === "home appliances") {
+      result = result.filter((p) => ["home decoration", "kitchen accessories", "furniture"].includes(p.category.toLowerCase()));
+    } else if (catLower === "kitchen") {
+      result = result.filter((p) => ["kitchen accessories", "groceries"].includes(p.category.toLowerCase()));
+    } else if (catLower === "beauty") {
+      result = result.filter((p) => ["beauty", "skin care", "fragrances"].includes(p.category.toLowerCase()));
+    } else if (catLower === "automotive") {
+      result = result.filter((p) => ["motorcycle", "vehicle"].includes(p.category.toLowerCase()));
+    } else if (catLower === "sports") {
+      result = result.filter((p) => p.category.toLowerCase().includes("sport"));
+    } else if (catLower === "gaming") {
+      result = result.filter((p) => 
+        p.category.toLowerCase() === "laptops" || 
+        p.name.toLowerCase().includes("game") || 
+        p.description.toLowerCase().includes("game")
+      );
+    } else if (catLower === "books") {
+      result = result.filter((p) => 
+        p.category.toLowerCase() === "books" || 
+        p.name.toLowerCase().includes("book") || 
+        p.description.toLowerCase().includes("book")
+      );
+    } else if (catLower === "toys") {
+      result = result.filter((p) => 
+        p.category.toLowerCase() === "toys" || 
+        p.name.toLowerCase().includes("toy") || 
+        p.description.toLowerCase().includes("toy")
+      );
+    } else {
+      result = result.filter((p) => p.category.toLowerCase() === catLower);
+    }
   }
 
   // 3. Sorting

@@ -5,6 +5,7 @@
 
 import fs from "fs";
 import path from "path";
+import axios from "axios";
 import { DB_FILE_PATH } from "../config/config";
 import { Product, CartItem, Order } from "../types";
 import { generateMockDatabase } from "./dataGenerator";
@@ -706,5 +707,437 @@ export const saveDatabase = (db: DatabaseSchema): void => {
     fs.writeFileSync(DB_FILE_PATH, JSON.stringify(fileDb, null, 2), "utf8");
   } catch (err) {
     console.error("Error writing database file:", err);
+  }
+};
+
+export const syncProductsWithDummyJson = async (): Promise<void> => {
+  try {
+    console.log("Fetching real products from DummyJSON API...");
+    // Fetch all 194 products using limit=0
+    const response = await axios.get("https://dummyjson.com/products?limit=0");
+    const dummyProducts = response.data.products || [];
+
+    if (!Array.isArray(dummyProducts) || dummyProducts.length === 0) {
+      throw new Error("Invalid response format from DummyJSON API");
+    }
+
+    // Also fetch dedicated smartphones from DummyJSON to ensure we have real smartphones
+    try {
+      console.log("Fetching smartphones from dummy mobile API...");
+      const smartphoneResponse = await axios.get("https://dummyjson.com/products/category/smartphones");
+      if (smartphoneResponse.data && Array.isArray(smartphoneResponse.data.products)) {
+        const smartphones = smartphoneResponse.data.products;
+        const existingIds = new Set(dummyProducts.map((p: any) => p.id));
+        for (const phone of smartphones) {
+          if (!existingIds.has(phone.id)) {
+            dummyProducts.push(phone);
+          }
+        }
+      }
+    } catch (smartErr: any) {
+      console.warn("Could not fetch smartphones category from DummyJSON, continuing with main list:", smartErr.message || smartErr);
+    }
+
+    console.log(`Successfully fetched and merged ${dummyProducts.length} products from DummyJSON. Mapping products...`);
+
+    const mappedProducts: Product[] = dummyProducts.map((p: any) => {
+      const discount = p.discountPercentage ? Math.round(p.discountPercentage) : 0;
+      const price = p.price;
+      const originalPrice = discount > 0 ? parseFloat((price / (1 - discount / 100)).toFixed(2)) : price;
+      const reviewsCount = p.reviews && p.reviews.length ? p.reviews.length * 12 + 5 : Math.floor(Math.random() * 200) + 10;
+      const mainImage = p.thumbnail || (p.images && p.images[0]) || "https://picsum.photos/seed/qkart/600/600";
+      const additionalImages = p.images && p.images.length ? p.images : [mainImage];
+      
+      const specs: Record<string, string> = {};
+      if (p.brand) specs["Brand"] = p.brand;
+      if (p.sku) specs["SKU"] = p.sku;
+      if (p.weight) specs["Weight"] = `${p.weight} kg`;
+      if (p.dimensions) specs["Dimensions"] = `${p.dimensions.width}x${p.dimensions.height}x${p.dimensions.depth} cm`;
+      if (p.warrantyInformation) specs["Warranty"] = p.warrantyInformation;
+      if (p.shippingInformation) specs["Shipping"] = p.shippingInformation;
+      if (p.returnPolicy) specs["Return Policy"] = p.returnPolicy;
+
+      let formattedCategory = p.category
+        ? p.category.split("-").map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
+        : "General";
+
+      if (formattedCategory === "Smartphones") {
+        formattedCategory = "Mobiles";
+      }
+
+      return {
+        id: `prod-${p.id}`,
+        name: p.title,
+        category: formattedCategory,
+        price: price,
+        rating: p.rating || 4.0,
+        image: mainImage,
+        description: p.description || "",
+        stock: p.stock || 10,
+        brand: p.brand || "Generic",
+        originalPrice: originalPrice,
+        discount: discount,
+        reviewsCount: reviewsCount,
+        images: additionalImages,
+        specifications: specs,
+        deliveryInfo: p.shippingInformation || "FREE Delivery in 3-5 days. Eligible for Prime."
+      };
+    });
+
+    // Also fetch from FakeStoreAPI to enrich Genders and fashion options
+    try {
+      console.log("Fetching additional products from FakeStoreAPI...");
+      const fakeStoreResponse = await axios.get("https://fakestoreapi.com/products");
+      if (fakeStoreResponse.data && Array.isArray(fakeStoreResponse.data)) {
+        console.log(`Successfully fetched ${fakeStoreResponse.data.length} products from FakeStoreAPI. Merging...`);
+        
+        for (const p of fakeStoreResponse.data) {
+          const discount = Math.floor(Math.random() * 16) + 10; // 10-25% discount
+          const price = p.price;
+          const originalPrice = parseFloat((price / (1 - discount / 100)).toFixed(2));
+          const reviewsCount = p.rating?.count || Math.floor(Math.random() * 150) + 12;
+          const mainImage = p.image;
+          
+          let formattedCategory = "General";
+          const fakeCat = p.category.toLowerCase();
+          if (fakeCat === "men's clothing") {
+            formattedCategory = "Mens Clothing";
+          } else if (fakeCat === "women's clothing") {
+            formattedCategory = "Womens Clothing";
+          } else if (fakeCat === "jewelery") {
+            formattedCategory = "Womens Jewellery";
+          } else if (fakeCat === "electronics") {
+            formattedCategory = "Electronics";
+          } else {
+            formattedCategory = p.category
+              .split(" ")
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ");
+          }
+
+          // Check if product with this title already exists in DummyJSON to avoid obvious duplicates
+          const exists = mappedProducts.some(mp => mp.name.toLowerCase() === p.title.toLowerCase());
+          if (!exists) {
+            mappedProducts.push({
+              id: `prod-fake-${p.id}`,
+              name: p.title,
+              category: formattedCategory,
+              price: price,
+              rating: p.rating?.rate || 4.2,
+              image: mainImage,
+              description: p.description || "",
+              stock: Math.floor(Math.random() * 80) + 20,
+              brand: "Imported Brand",
+              originalPrice: originalPrice,
+              discount: discount,
+              reviewsCount: reviewsCount,
+              images: [mainImage],
+              specifications: {
+                "Brand": "Imported Brand",
+                "Collection": formattedCategory,
+                "Quality Grade": "Premium Quality"
+              },
+              deliveryInfo: "FREE Delivery. Eligible for Prime."
+            });
+          }
+        }
+      }
+    } catch (fakeErr: any) {
+      console.warn("Could not fetch products from FakeStoreAPI, proceeding with existing list:", fakeErr.message || fakeErr);
+    }
+
+    // Define highly polished Kids and Baby products dataset covering infant, toddler, kid, and teen age ranges
+    const kidsProducts: Product[] = [
+      {
+        id: "prod-kids-1",
+        name: "Lullaby Club Unisex Organic Cotton Romper (Pack of 3)",
+        category: "Baby Clothing",
+        price: 19.99,
+        rating: 4.8,
+        image: "https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80",
+        description: "Ultra-soft, breathable organic cotton rompers with easy snap closures. Perfect for newborn and infant sensitive skin. GOTS certified.",
+        stock: 85,
+        brand: "Lullaby Club",
+        originalPrice: 24.99,
+        discount: 20,
+        reviewsCount: 142,
+        images: [
+          "https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80",
+          "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&auto=format&fit=crop&q=80"
+        ],
+        specifications: {
+          "Material": "100% Organic Cotton",
+          "Sizes": "0-3M, 3-6M, 6-12M, 12-18M",
+          "Age Range": "Infant (0-18 Months)",
+          "Gender": "Unisex",
+          "Care Instructions": "Machine wash cold, tumble dry low"
+        },
+        deliveryInfo: "FREE Delivery tomorrow for Prime members."
+      },
+      {
+        id: "prod-kids-2",
+        name: "Tiny Toes Soft-Sole Anti-Slip Infant Booties",
+        category: "Baby Clothing",
+        price: 12.49,
+        rating: 4.6,
+        image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&auto=format&fit=crop&q=80",
+        description: "Cozy fleece booties designed to stay on active feet with an elastic ankle support and non-slip silicone grips on soles.",
+        stock: 50,
+        brand: "Tiny Toes",
+        originalPrice: 15.99,
+        discount: 22,
+        reviewsCount: 88,
+        images: ["https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "Fleece Upper, Cotton Lining",
+          "Age Range": "0-12 Months",
+          "Gender": "Unisex",
+          "Sole Type": "Anti-slip silicone grip"
+        },
+        deliveryInfo: "Ships in 1-2 business days."
+      },
+      {
+        id: "prod-kids-3",
+        name: "Mini Explorer Toddler Hooded Dino Bathrobe",
+        category: "Baby Clothing",
+        price: 17.99,
+        rating: 4.9,
+        image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&auto=format&fit=crop&q=80",
+        description: "Highly absorbent micro-fleece dinosaur bathrobe with sensory spines on the hood. Warm, plush, and extremely adorable.",
+        stock: 65,
+        brand: "Mini Explorer",
+        originalPrice: 21.99,
+        discount: 18,
+        reviewsCount: 195,
+        images: ["https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "Premium Micro-Fleece",
+          "Age Range": "Toddler (2-4 Years)",
+          "Gender": "Unisex",
+          "Style": "Dinosaur Hooded"
+        },
+        deliveryInfo: "FREE Delivery in 2-3 business days."
+      },
+      {
+        id: "prod-kids-4",
+        name: "Girls Floral Embroidered Cotton Summer Dress",
+        category: "Girls Clothing",
+        price: 24.99,
+        rating: 4.7,
+        image: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=600&auto=format&fit=crop&q=80",
+        description: "A gorgeous, lightweight summer dress featuring beautiful hand-embroidered flowers, a flared skirt, and a comfortable lining.",
+        stock: 40,
+        brand: "Little Joy",
+        originalPrice: 32.99,
+        discount: 24,
+        reviewsCount: 112,
+        images: ["https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "100% Breathable Cotton",
+          "Sizes": "3T, 4T, 5, 6, 7, 8",
+          "Age Range": "Kids (3-8 Years)",
+          "Gender": "Girls",
+          "Occasion": "Casual Summer Wear"
+        },
+        deliveryInfo: "Ships overnight. Eligible for Prime."
+      },
+      {
+        id: "prod-kids-5",
+        name: "Girls Sequin Star Denim Jacket",
+        category: "Girls Clothing",
+        price: 29.99,
+        rating: 4.8,
+        image: "https://images.unsplash.com/photo-1471286174243-e7a4d9afb34a?w=600&auto=format&fit=crop&q=80",
+        description: "High-quality soft-washed denim jacket with a stunning sequined star design on the back. Durable metal button enclosures.",
+        stock: 35,
+        brand: "Starlet",
+        originalPrice: 39.99,
+        discount: 25,
+        reviewsCount: 74,
+        images: ["https://images.unsplash.com/photo-1471286174243-e7a4d9afb34a?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "98% Cotton, 2% Elastane",
+          "Sizes": "5, 6, 8, 10, 12",
+          "Age Range": "Kids & Teens (5-12 Years)",
+          "Gender": "Girls"
+        },
+        deliveryInfo: "FREE Delivery in 3-5 days."
+      },
+      {
+        id: "prod-kids-6",
+        name: "Boys Heavy-Duty Camouflage Cargo Joggers",
+        category: "Boys Clothing",
+        price: 21.99,
+        rating: 4.5,
+        image: "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=600&auto=format&fit=crop&q=80",
+        description: "Sturdy cargo pants with elastic joggers cuffs and drawstring waistband. Features reinforced knees for rugged, outdoor playtime.",
+        stock: 75,
+        brand: "Rough & Tumble",
+        originalPrice: 27.99,
+        discount: 21,
+        reviewsCount: 130,
+        images: ["https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "Cotton Canvas Ripstop",
+          "Sizes": "4T, 5, 6, 7, 8, 10",
+          "Age Range": "Kids (4-10 Years)",
+          "Gender": "Boys"
+        },
+        deliveryInfo: "Eligible for standard free delivery."
+      },
+      {
+        id: "prod-kids-7",
+        name: "Youth Activewear Breathable Athletic Tee (Pack of 2)",
+        category: "Boys Clothing",
+        price: 15.49,
+        rating: 4.6,
+        image: "https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?w=600&auto=format&fit=crop&q=80",
+        description: "Moisture-wicking active tees designed for sports and active kids. Quick-drying fabrics with reflective safety stripes.",
+        stock: 120,
+        brand: "Junior Sport",
+        originalPrice: 19.99,
+        discount: 22,
+        reviewsCount: 210,
+        images: ["https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "100% Polyester Tech Mesh",
+          "Sizes": "S, M, L, XL",
+          "Age Range": "Youth (8-14 Years)",
+          "Gender": "Boys / Unisex"
+        },
+        deliveryInfo: "FREE Delivery tomorrow with Prime."
+      },
+      {
+        id: "prod-kids-8",
+        name: "Kids Light-Up Active Play Sneakers",
+        category: "Kids Shoes",
+        price: 34.99,
+        rating: 4.7,
+        image: "https://images.unsplash.com/photo-1515488042361-404e9250afef?w=600&auto=format&fit=crop&q=80",
+        description: "Fun, vibrant sneakers with motion-activated LED lights in the heel. Breathable mesh upper and easy strap closure.",
+        stock: 45,
+        brand: "Tiny Toes",
+        originalPrice: 44.99,
+        discount: 22,
+        reviewsCount: 165,
+        images: ["https://images.unsplash.com/photo-1515488042361-404e9250afef?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "Breathable Mesh, EVA Sole",
+          "Age Range": "Kids (3-8 Years)",
+          "Gender": "Unisex",
+          "Feature": "Motion-activated LED heel lights"
+        },
+        deliveryInfo: "Ships in 2-3 business days."
+      },
+      {
+        id: "prod-kids-9",
+        name: "Interactive Wooden Montessori Activity Cube",
+        category: "Toys & Games",
+        price: 39.99,
+        rating: 4.9,
+        image: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=600&auto=format&fit=crop&q=80",
+        description: "5-in-1 educational wooden toy with bead maze, shape sorter, spinning gears, and sliding clock. Encourages motor skills and cognitive development.",
+        stock: 30,
+        brand: "Smart Start",
+        originalPrice: 49.99,
+        discount: 20,
+        reviewsCount: 284,
+        images: ["https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "Natural Beechwood, Non-toxic Paints",
+          "Age Range": "Toddler (1-3 Years)",
+          "Dimensions": "30x30x40 cm",
+          "Safety": "ASTM F963 Certified"
+        },
+        deliveryInfo: "Ships in 1-2 business days."
+      },
+      {
+        id: "prod-kids-10",
+        name: "Ultra-Soft Cozy Weighted Teddy Bear",
+        category: "Toys & Games",
+        price: 18.99,
+        rating: 4.8,
+        image: "https://images.unsplash.com/photo-1559251606-c623743a6d76?w=600&auto=format&fit=crop&q=80",
+        description: "Plush therapeutic teddy bear with a gentle 1.5 lb weight, providing pressure stimulation to help kids calm down and sleep better.",
+        stock: 90,
+        brand: "Lullaby Club",
+        originalPrice: 24.99,
+        discount: 24,
+        reviewsCount: 310,
+        images: ["https://images.unsplash.com/photo-1559251606-c623743a6d76?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "Hypoallergenic Micro-Plush, Glass Beads",
+          "Weight": "1.5 lbs / 700g",
+          "Age Range": "3 Years and Up",
+          "Gender": "Unisex"
+        },
+        deliveryInfo: "Ships overnight. Eligible for Prime."
+      },
+      {
+        id: "prod-kids-11",
+        name: "Teens Pastel Tie-Dye Oversized Hoodie",
+        category: "Girls Clothing",
+        price: 32.99,
+        rating: 4.7,
+        image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80",
+        description: "Super trendy oversized pastel wash tie-dye hoodie, constructed from thick premium French terry cotton. Ultra comfortable and stylish.",
+        stock: 45,
+        brand: "Urban Youth",
+        originalPrice: 42.99,
+        discount: 23,
+        reviewsCount: 94,
+        images: ["https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "100% French Terry Cotton",
+          "Sizes": "XS, S, M, L",
+          "Age Range": "Teens (12-18 Years)",
+          "Gender": "Girls / Unisex"
+        },
+        deliveryInfo: "FREE Delivery tomorrow with Prime."
+      },
+      {
+        id: "prod-kids-12",
+        name: "Youth Premium Urban Knit High-Top Sneakers",
+        category: "Kids Shoes",
+        price: 45.99,
+        rating: 4.8,
+        image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80",
+        description: "Extremely lightweight knit high-top sneakers with memory foam insoles, breathable sport weave, and high traction rubber outsoles.",
+        stock: 60,
+        brand: "Stride Tech",
+        originalPrice: 59.99,
+        discount: 23,
+        reviewsCount: 118,
+        images: ["https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80"],
+        specifications: {
+          "Material": "Recycled Flyknit, Rubber Sole",
+          "Sizes": "Y3, Y4, Y5, Y6, Y7",
+          "Age Range": "Youth / Teens (10-16 Years)",
+          "Gender": "Unisex"
+        },
+        deliveryInfo: "Ships overnight. Eligible for Prime."
+      }
+    ];
+
+    // Merge kids dataset into mappedProducts
+    mappedProducts.push(...kidsProducts);
+
+    const uniqueCats = Array.from(new Set(mappedProducts.map((p) => p.category)));
+    const categoriesList = uniqueCats.map((cat, idx) => ({
+      id: `cat-${idx + 1}`,
+      name: cat,
+      slug: cat.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      description: `Explore top-quality products in ${cat} on QKart.`
+    }));
+
+    const db = getDatabase();
+    db.products = mappedProducts;
+    (db as any).categories = categoriesList;
+    saveDatabase(db);
+
+    console.log(`Database synced. Mapped ${mappedProducts.length} products and ${categoriesList.length} categories.`);
+  } catch (err: any) {
+    console.error("Failed to sync products with DummyJSON:", err.message || err);
+    throw err;
   }
 };

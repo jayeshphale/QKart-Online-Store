@@ -200,7 +200,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
 
           {/* Dynamic Filter and Sorting Controls */}
           <FilterBar
-            categories={categories}
+            categories={categories.includes(selectedCategory) ? categories : [...categories, selectedCategory]}
             selectedCategory={selectedCategory}
             onCategoryChange={(cat) => setSelectedCategory(cat)}
             selectedSort={selectedSort}

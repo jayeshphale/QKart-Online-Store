@@ -10,12 +10,20 @@ import { createServer as createViteServer } from "vite";
 import apiRouter from "./routes/index";
 import { PORT } from "./config/config";
 import { errorHandler } from "./middleware/errorMiddleware";
-import { getDatabase } from "./services/dbService";
+import { getDatabase, syncProductsWithDummyJson } from "./services/dbService";
 
 async function startServer() {
   // Eagerly initialize/generate database if not present
   console.log("Eagerly checking/initializing database...");
   getDatabase();
+
+  // Sync products with DummyJSON API
+  try {
+    await syncProductsWithDummyJson();
+    console.log("Successfully loaded live e-commerce products from DummyJSON API!");
+  } catch (err: any) {
+    console.warn("Could not sync with DummyJSON, using local mock backup products instead:", err.message || err);
+  }
 
   const app = express();
 
